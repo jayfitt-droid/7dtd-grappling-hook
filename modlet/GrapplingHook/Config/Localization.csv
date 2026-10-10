@@ -1,0 +1,9 @@
+Key,File,Type,UsedInMainMenu,NoTranslate,english
+ammoGrapplingHookScrap,items,Ammo,,,Scrap Grappling Hook
+ammoGrapplingHookScrapDesc,items,Ammo,,,"A crude grappling hook for the crossbow, with the shortest reach of the three. With the crossbow that fired it in hand, hold attack to reel in and aim to reel out. Jump to let go.\n\nWhile hanging you can switch to any other weapon or tool and use it normally. The rope holds its length until you switch back to that crossbow."
+ammoGrapplingHookIron,items,Ammo,,,Iron Grappling Hook
+ammoGrapplingHookIronDesc,items,Ammo,,,"A forged iron grappling hook for the crossbow that reaches farther than the scrap hook. With the crossbow that fired it in hand, hold attack to reel in and aim to reel out. Jump to let go.\n\nWhile hanging you can switch to any other weapon or tool and use it normally. The rope holds its length until you switch back to that crossbow."
+ammoGrapplingHookSteel,items,Ammo,,,Steel Grappling Hook
+ammoGrapplingHookSteelDesc,items,Ammo,,,"A steel grappling hook for the crossbow, with the longest reach of the three. With the crossbow that fired it in hand, hold attack to reel in and aim to reel out. Jump to let go.\n\nWhile hanging you can switch to any other weapon or tool and use it normally. The rope holds its length until you switch back to that crossbow."
+ammoGrapplingHookIronSchematic,items,Book,,,Iron Grappling Hook Schematic
+ammoGrapplingHookSteelSchematic,items,Book,,,Steel Grappling Hook Schematic

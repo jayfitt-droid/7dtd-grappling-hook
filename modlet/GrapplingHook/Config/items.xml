@@ -1,0 +1,74 @@
+<configs>
+    <append xpath="/items">
+        <!-- Three tiers of the same grappling bolt. They differ in finish, cost and
+             how far they can grapple; the range per tier is in GrapplingHookConfig.json. -->
+        <item name="ammoGrapplingHookScrap">
+            <property name="Extends" value="ammoCrossbowBoltIron"/>
+            <property name="CustomIcon" value="ammoGrapplingHookScrap"/>
+            <property name="Meshfile" value="@:Other/Items/Weapons/Ranged/Bows/Arrows/bolt_ironPrefab.prefab"/>
+            <property name="IsSticky" value="false"/>
+            <property name="EconomicValue" value="30"/>
+            <effect_group name="ammoGrapplingHookScrap" tiered="false">
+                <passive_effect name="EntityDamage" operation="base_set" value="0" tags="perkArchery"/>
+                <passive_effect name="BlockDamage" operation="base_set" value="10" tags="perkArchery"/>
+                <passive_effect name="ProjectileVelocity" operation="base_set" value="75" tags="perkArchery"/>
+            </effect_group>
+        </item>
+        <item name="ammoGrapplingHookIron">
+            <property name="Extends" value="ammoCrossbowBoltIron"/>
+            <property name="CustomIcon" value="ammoGrapplingHookIron"/>
+            <property name="Meshfile" value="@:Other/Items/Weapons/Ranged/Bows/Arrows/bolt_ironPrefab.prefab"/>
+            <property name="IsSticky" value="false"/>
+            <property name="EconomicValue" value="80"/>
+            <property name="UnlockedBy" value="ammoGrapplingHookIronSchematic"/>
+            <effect_group name="ammoGrapplingHookIron" tiered="false">
+                <passive_effect name="EntityDamage" operation="base_set" value="0" tags="perkArchery"/>
+                <passive_effect name="BlockDamage" operation="base_set" value="10" tags="perkArchery"/>
+                <passive_effect name="ProjectileVelocity" operation="base_set" value="75" tags="perkArchery"/>
+            </effect_group>
+        </item>
+        <item name="ammoGrapplingHookSteel">
+            <property name="Extends" value="ammoCrossbowBoltIron"/>
+            <property name="CustomIcon" value="ammoGrapplingHookSteel"/>
+            <property name="Meshfile" value="@:Other/Items/Weapons/Ranged/Bows/Arrows/bolt_ironPrefab.prefab"/>
+            <property name="IsSticky" value="false"/>
+            <property name="EconomicValue" value="160"/>
+            <property name="UnlockedBy" value="ammoGrapplingHookSteelSchematic"/>
+            <effect_group name="ammoGrapplingHookSteel" tiered="false">
+                <passive_effect name="EntityDamage" operation="base_set" value="0" tags="perkArchery"/>
+                <passive_effect name="BlockDamage" operation="base_set" value="10" tags="perkArchery"/>
+                <passive_effect name="ProjectileVelocity" operation="base_set" value="75" tags="perkArchery"/>
+            </effect_group>
+        </item>
+
+        <!-- Schematics, in the same form as the game's own (Unlocks plus a cvar set on reading). -->
+        <item name="ammoGrapplingHookIronSchematic">
+            <property name="Extends" value="schematicNoQualityMaster"/>
+            <property name="CreativeMode" value="Player"/>
+            <property name="CustomIcon" value="ammoGrapplingHookIron"/>
+            <property name="Unlocks" value="ammoGrapplingHookIron"/>
+            <effect_group tiered="false">
+                <triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar" cvar="ammoGrapplingHookIron" operation="set" value="1"/>
+                <triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+            </effect_group>
+        </item>
+        <item name="ammoGrapplingHookSteelSchematic">
+            <property name="Extends" value="schematicNoQualityMaster"/>
+            <property name="CreativeMode" value="Player"/>
+            <property name="CustomIcon" value="ammoGrapplingHookSteel"/>
+            <property name="Unlocks" value="ammoGrapplingHookSteel"/>
+            <effect_group tiered="false">
+                <triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar" cvar="ammoGrapplingHookSteel" operation="set" value="1"/>
+                <triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
+            </effect_group>
+        </item>
+    </append>
+    <!-- Add to each crossbow's existing ammo list instead of replacing it, so
+         other mods and game updates that change the list keep working. -->
+    <csv xpath="/items/item[@name='gunBowT1IronCrossbow']/property[@class='Action0']/property[@name='Magazine_items']/@value" delim="," op="add">ammoGrapplingHookScrap</csv>
+    <csv xpath="/items/item[@name='gunBowT1IronCrossbow']/property[@class='Action0']/property[@name='Magazine_items']/@value" delim="," op="add">ammoGrapplingHookIron</csv>
+    <csv xpath="/items/item[@name='gunBowT1IronCrossbow']/property[@class='Action0']/property[@name='Magazine_items']/@value" delim="," op="add">ammoGrapplingHookSteel</csv>
+    <csv xpath="/items/item[@name='gunBowT3CompoundCrossbow']/property[@class='Action0']/property[@name='Magazine_items']/@value" delim="," op="add">ammoGrapplingHookScrap</csv>
+    <csv xpath="/items/item[@name='gunBowT3CompoundCrossbow']/property[@class='Action0']/property[@name='Magazine_items']/@value" delim="," op="add">ammoGrapplingHookIron</csv>
+    <csv xpath="/items/item[@name='gunBowT3CompoundCrossbow']/property[@class='Action0']/property[@name='Magazine_items']/@value" delim="," op="add">ammoGrapplingHookSteel</csv>
+</configs>

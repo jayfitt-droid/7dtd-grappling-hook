@@ -1,0 +1,40 @@
+{
+  // Grappling Hook settings. Edit the values, then restart the game or run
+  // "gh reload" in the console. A missing or invalid value falls back to the
+  // default shown in its comment, and the game log says so. Distances are in
+  // meters.
+
+  // How far away a Scrap Grappling Hook can attach, measured in a straight
+  // line from you to the point it hits. A shot at anything farther does not
+  // attach and the hook is used up. Allowed: 2 to 200. Default: 15
+  "scrap_max_distance": 15,
+
+  // The same for the Iron Grappling Hook. Allowed: 2 to 200. Default: 25
+  "iron_max_distance": 25,
+
+  // The same for the Steel Grappling Hook. Allowed: 2 to 200. Default: 35
+  "steel_max_distance": 35,
+
+  // How fast the rope shortens while you hold attack with the crossbow that
+  // fired the hook, in meters per second. Allowed: 0.1 to 50. Default: 6.0
+  "reel_in_speed": 6.0,
+
+  // How fast the rope lengthens while you hold aim with that crossbow, in
+  // meters per second. There is no limit on how far you can reel out.
+  // Allowed: 0.1 to 50. Default: 4.0
+  "reel_out_speed": 4.0,
+
+  // Damage a hook does to the block it hits. Hooks never damage enemies.
+  // Allowed: 0 to 10000. Default: 10
+  "block_damage": 10,
+
+  // true: letting go of the rope in the air can hurt you when you land, like
+  // any other fall. false: the first landing after letting go does no fall
+  // damage. Default: true
+  "fall_damage_on_release": true,
+
+  // Stamina used per second while you are attached and off the ground.
+  // When your stamina runs out you let go of the rope, however high you are.
+  // 0 turns stamina use off. Allowed: 0 to 100. Default: 3
+  "stamina_use": 3
+}

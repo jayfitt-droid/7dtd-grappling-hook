@@ -1,0 +1,21 @@
+<configs>
+    <append xpath="/recipes">
+        <!-- Scrap: known from the start and made in the backpack. -->
+        <recipe name="ammoGrapplingHookScrap" count="5" craft_time="10">
+            <ingredient name="resourceScrapIron" count="20"/>
+            <ingredient name="resourceYuccaFibers" count="10"/>
+            <ingredient name="resourceDuctTape" count="1"/>
+        </recipe>
+        <!-- Iron and steel: learned from their schematics, made at a workbench. -->
+        <recipe name="ammoGrapplingHookIron" count="5" craft_time="10" craft_area="workbench" tags="learnable,workbenchCrafting">
+            <ingredient name="resourceForgedIron" count="4"/>
+            <ingredient name="resourceMechanicalParts" count="5"/>
+            <ingredient name="resourceDuctTape" count="3"/>
+        </recipe>
+        <recipe name="ammoGrapplingHookSteel" count="5" craft_time="10" craft_area="workbench" tags="learnable,workbenchCrafting">
+            <ingredient name="resourceForgedSteel" count="4"/>
+            <ingredient name="resourceMechanicalParts" count="5"/>
+            <ingredient name="resourceDuctTape" count="3"/>
+        </recipe>
+    </append>
+</configs>

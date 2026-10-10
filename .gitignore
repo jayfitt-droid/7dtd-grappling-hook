@@ -1,0 +1,21 @@
+build/
+build.log
+src/GrapplingHook/obj/
+tools/*/bin/
+tools/*/obj/
+server_smoke.log
+
+# Unity asset project: generated folders
+unity/GrapplingHookAssets/Library/
+unity/GrapplingHookAssets/Temp/
+unity/GrapplingHookAssets/Logs/
+unity/GrapplingHookAssets/UserSettings/
+unity/GrapplingHookAssets/Build/
+unity/GrapplingHookAssets/obj/
+unity/GrapplingHookAssets/*.csproj
+unity/GrapplingHookAssets/*.sln
+unity/*.log
+unity/preview/
+
+# Packaged releases (package.ps1)
+dist/
