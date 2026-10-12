@@ -19,3 +19,6 @@ unity/preview/
 
 # Packaged releases (package.ps1)
 dist/
+
+# Stray crash-reporter log written into the folder by the editor
+debug.log

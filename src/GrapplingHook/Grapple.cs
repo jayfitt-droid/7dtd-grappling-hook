@@ -49,6 +49,20 @@ internal static class Grapple
     private static float groundedSince = -1f;
 
     internal static bool IsAttached { get { return state != null; } }
+
+    /// <summary>
+    /// Tells other mods that a rope is attached, without either side referencing
+    /// the other's assembly: a named value on the AppDomain, true while attached
+    /// and absent otherwise. It is never saved and is gone when the game closes.
+    /// The Glider Suit mod reads it and folds its wings, because both mods drive
+    /// the player's velocity from vp_FPController.FixedMove and cannot share it.
+    /// </summary>
+    internal const string AttachedSignal = "GrapplingHook.Attached";
+
+    private static void PublishAttached(bool attached)
+    {
+        AppDomain.CurrentDomain.SetData(AttachedSignal, attached ? (object)true : null);
+    }
     internal static GrappleState State { get { return state; } }
 
     internal static Vector3 AttachOffset(EntityPlayerLocal player)
@@ -171,6 +185,7 @@ internal static class Grapple
             state.CrossbowSeed = crossbow.Seed;
             state.CrossbowQuality = crossbow.Quality;
         }
+        PublishAttached(true);
         suppressReleaseLanding = false;
         disconnectHeld = HookInput.DisconnectHeld(player);
         HookInput.Enable();
@@ -186,6 +201,7 @@ internal static class Grapple
         GrappleState old = state;
         if (old == null) return;
         state = null;
+        PublishAttached(false);
         EntityPlayerLocal player = old.Player;
         vp_FPController controller = player != null ? player.vp_FPController : null;
         bool alive = player != null && !player.IsDead() && player.AttachedToEntity == null;
