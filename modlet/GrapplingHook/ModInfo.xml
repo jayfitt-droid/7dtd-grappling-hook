@@ -2,9 +2,9 @@
 <xml>
 	<Name value="GrapplingHook" />
 	<DisplayName value="Grappling Hook" />
-	<Description value="Adds craftable grappling-hook crossbow bolts, a rope constraint, and reel controls." />
+	<Description value="Craftable grappling hooks for the crossbows: anchor a rope to climb, descend and swing. Single-player and multiplayer (install on the server and every client)." />
 	<Author value="Jason" />
-	<Version value="0.9.0" />
+	<Version value="1.0.0" />
 	<Website value="" />
 	<SkipWithAntiCheat value="true" />
 </xml>

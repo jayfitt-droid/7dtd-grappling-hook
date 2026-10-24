@@ -8,12 +8,6 @@ using UnityEngine.Rendering;
 /// </summary>
 internal static class HookLine
 {
-    private const int Segments = 24;
-    private const int Sides = 10;
-    private const float RopeRadius = 0.008f;
-    // One texture tile is one lay length of the rope (the baked tile matches a
-    // 1.6 cm rope with a 5.4 cm lay); u runs along the rope, v around it.
-    private const float RopeLayMeters = 0.054f;
     // Tail of the stock bolt behind the anchor point, used when the hook model
     // (with its rope eye) is not available.
     private const float BoltTailOffset = 0.3f;
@@ -23,79 +17,56 @@ internal static class HookLine
     private const float WaistDrop = 0.4f;
     private const float WaistForward = 0f;
     // How far the hook's nose sits inside the block it hit.
-    private const float HookTipPenetration = 0.03f;
+    internal const float HookTipPenetration = 0.03f;
 
-    private static GameObject ropeObject;
-    private static Mesh ropeMesh;
+    private static RopeTube rope;
     private static Material material;
     private static bool ownsMaterial;
+    private static Material sharedFallback;
     private static Texture2D texture;
     private static Texture2D normalMap;
     private static GameObject anchorBolt;
     private static Vector3 anchorBoltWorld;
     private static Vector3 ropeEyeOffset;
     private static bool hasRopeEye;
-    private static readonly Vector3[] points = new Vector3[Segments + 1];
-    private static readonly Vector3[] vertices = new Vector3[(Segments + 1) * (Sides + 1) + 2 * (Sides + 1)];
-    private static readonly Vector3[] normals = new Vector3[vertices.Length];
-    private static readonly Vector4[] tangents = new Vector4[vertices.Length];
-    private static readonly Vector2[] uvs = new Vector2[vertices.Length];
 
     internal static void Show()
     {
-        if (ropeObject != null) return;
+        if (rope != null) return;
         material = HookAssets.RopeMaterial;
         ownsMaterial = material == null;
         if (ownsMaterial) material = CreateRopeMaterial();
-        else Log.Out("[GrapplingHook] Rope uses the bundled rope material.");
+        else HookMod.Verbose("[GrapplingHook] Rope uses the bundled rope material.");
         if (material == null)
         {
             Log.Warning("[GrapplingHook] No rope shader found.");
             return;
         }
-        ropeObject = new GameObject("GrapplingHookRope");
-        ropeMesh = new Mesh { name = "GrapplingHookRope" };
-        ropeMesh.MarkDynamic();
-        ropeMesh.vertices = vertices;
-        ropeMesh.triangles = BuildTriangles();
-        ropeObject.AddComponent<MeshFilter>().sharedMesh = ropeMesh;
-        var renderer = ropeObject.AddComponent<MeshRenderer>();
-        renderer.sharedMaterial = material;
-        renderer.shadowCastingMode = ShadowCastingMode.On;
-        renderer.receiveShadows = true;
-        ropeObject.AddComponent<HookLineDriver>();
+        rope = new RopeTube("GrapplingHookRope", material);
+        rope.GameObject.AddComponent<HookLineDriver>();
         // The camera moves late in the frame. Updating just before the main
         // camera renders keeps the rope from trailing it by a frame.
         Camera.onPreCull += OnPreCull;
     }
 
-    /// <summary>Tube quads, then a fan cap at each end.</summary>
-    private static int[] BuildTriangles()
+    /// <summary>
+    /// Material for other players' ropes: the bundled one, or one fallback
+    /// material made once and kept (several ropes share it).
+    /// </summary>
+    internal static Material SharedRopeMaterial()
     {
-        int ring = Sides + 1;
-        var tris = new int[Segments * Sides * 6 + 2 * Sides * 3];
-        int t = 0;
-        for (int i = 0; i < Segments; i++)
-        for (int j = 0; j < Sides; j++)
-        {
-            int a = i * ring + j, b = a + 1, c = a + ring, d = c + 1;
-            tris[t++] = a; tris[t++] = c; tris[t++] = b;
-            tris[t++] = b; tris[t++] = c; tris[t++] = d;
-        }
-        int startCap = (Segments + 1) * ring, endCap = startCap + ring;
-        for (int j = 0; j < Sides; j++)
-        {
-            tris[t++] = startCap + Sides; tris[t++] = startCap + j; tris[t++] = startCap + j + 1;
-            tris[t++] = endCap + Sides; tris[t++] = endCap + j + 1; tris[t++] = endCap + j;
-        }
-        return tris;
+        Material bundled = HookAssets.RopeMaterial;
+        if (bundled != null) return bundled;
+        if (sharedFallback == null) sharedFallback = CreateRopeMaterial();
+        return sharedFallback;
     }
+
 
     /// <summary>
     /// Fallback when the bundle is missing: a lit Standard material with the
     /// procedural texture, or the unlit sprite shader with a darker tint.
     /// </summary>
-    private static Material CreateRopeMaterial()
+    internal static Material CreateRopeMaterial()
     {
         if (texture == null) CreateRopeTextures(out texture, out normalMap);
         Shader lit = Shader.Find("Standard");
@@ -110,12 +81,12 @@ internal static class HookLine
                 m.SetFloat("_BumpScale", 1f);
                 m.EnableKeyword("_NORMALMAP");
             }
-            Log.Out("[GrapplingHook] Rope uses the lit Standard shader with the procedural texture.");
+            HookMod.Verbose("[GrapplingHook] Rope uses the lit Standard shader with the procedural texture.");
             return m;
         }
         Shader unlit = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Texture");
         if (unlit == null) return null;
-        Log.Out("[GrapplingHook] Rope uses the unlit " + unlit.name + " shader.");
+        HookMod.Verbose("[GrapplingHook] Rope uses the unlit " + unlit.name + " shader.");
         return new Material(unlit) { mainTexture = texture, color = new Color(0.75f, 0.75f, 0.75f) };
     }
 
@@ -261,7 +232,7 @@ internal static class HookLine
             GameObject copy = CopyMeshes(projectile, "GrapplingHookAnchorBolt");
             if (copy == null)
             {
-                Log.Out("[GrapplingHook] Bolt model had no meshes to show at the anchor.");
+                HookMod.Verbose("[GrapplingHook] Bolt model had no meshes to show at the anchor.");
                 return;
             }
             anchorBolt = copy;
@@ -280,7 +251,7 @@ internal static class HookLine
             // The rope ties to the hook's eye.
             hasRopeEye = eye != null;
             if (hasRopeEye) ropeEyeOffset = eye.position - projectile.position;
-            Log.Out("[GrapplingHook] Anchor bolt shown with " + copy.transform.childCount + " mesh part(s)" +
+            HookMod.Verbose("[GrapplingHook] Anchor bolt shown with " + copy.transform.childCount + " mesh part(s)" +
                 (tip != null ? "; hook tip " + HookTipPenetration.ToString("F2") + " m into the block" : "") +
                 (hasRopeEye ? "; rope eye " + ropeEyeOffset.magnitude.ToString("F2") + " m from the pivot." : "."));
         }
@@ -341,7 +312,7 @@ internal static class HookLine
             // renderers are relative to the floating origin, which can move.
             Vector3 origin = Origin.position;
             if (anchorBolt != null) anchorBolt.transform.position = anchorBoltWorld - origin;
-            if (ropeMesh == null) return;
+            if (rope == null) return;
             Vector3 start = RopeStart(state, origin);
             Vector3 anchorWorld = state.Anchor;
             if (anchorBolt != null && hasRopeEye)
@@ -349,19 +320,8 @@ internal static class HookLine
             else if (anchorBolt != null && state.AnchorDirection.sqrMagnitude > 0.5f)
                 anchorWorld -= state.AnchorDirection * BoltTailOffset;
             Vector3 end = anchorWorld - origin;
-
-            // Sag only with slack: a parabola whose arc length matches the
-            // unused rope (arc ≈ span + 8h²/3span).
-            float span = Vector3.Distance(start, end);
-            float slack = Mathf.Max(0f, state.Length -
+            rope.Draw(start, end, state.Length -
                 Vector3.Distance(Grapple.PlayerAnchorPoint(state.Player), state.Anchor));
-            float sag = span > 0.01f ? Mathf.Min(Mathf.Sqrt(3f * span * slack / 8f), span * 0.5f) : 0f;
-            for (int i = 0; i <= Segments; i++)
-            {
-                float t = (float)i / Segments;
-                points[i] = Vector3.Lerp(start, end, t) + Vector3.down * (4f * sag * t * (1f - t));
-            }
-            BuildTube();
         }
         catch (Exception ex)
         {
@@ -369,6 +329,7 @@ internal static class HookLine
             Hide();
         }
     }
+
 
     /// <summary>
     /// Where the player's end of the rope is drawn, in Unity space. First
@@ -389,88 +350,14 @@ internal static class HookLine
         return view.position + Vector3.down * (state.Player.GetEyeHeight() * WaistDrop) + facing * WaistForward;
     }
 
-    /// <summary>
-    /// Rings of vertices around the rope path. The ring frame is carried along
-    /// the path by parallel transport so the tube doesn't twist; u is metres
-    /// along the rope over the lay length and v goes once around. Tangents
-    /// follow +u and the binormal +v, which is how the normal map was baked.
-    /// </summary>
-    private static void BuildTube()
-    {
-        int ring = Sides + 1;
-        Vector3 forward = (points[1] - points[0]).normalized;
-        if (forward.sqrMagnitude < 0.5f) forward = Vector3.forward;
-        Vector3 side = Vector3.Cross(forward, Mathf.Abs(forward.y) < 0.95f ? Vector3.up : Vector3.right).normalized;
-        float arc = 0f;
-        float tangentSign = 1f;
-        for (int i = 0; i <= Segments; i++)
-        {
-            Vector3 dir = i < Segments ? points[i + 1] - points[i] : points[i] - points[i - 1];
-            if (i > 0) arc += (points[i] - points[i - 1]).magnitude;
-            if (dir.sqrMagnitude > 1e-10f)
-            {
-                Vector3 next = dir.normalized;
-                side = Quaternion.FromToRotation(forward, next) * side;
-                forward = next;
-            }
-            Vector3 up = Vector3.Cross(side, forward);
-            float u = arc / RopeLayMeters;
-            for (int j = 0; j <= Sides; j++)
-            {
-                float a = 2f * Mathf.PI * j / Sides;
-                Vector3 n = Mathf.Cos(a) * side + Mathf.Sin(a) * up;
-                int k = i * ring + j;
-                vertices[k] = points[i] + n * RopeRadius;
-                normals[k] = n;
-                if (i == 0 && j == 0)
-                {
-                    // Unity's binormal is cross(normal, tangent) * w; make it +v.
-                    Vector3 aroundV = -Mathf.Sin(a) * side + Mathf.Cos(a) * up;
-                    tangentSign = Vector3.Dot(Vector3.Cross(n, forward), aroundV) >= 0f ? 1f : -1f;
-                }
-                tangents[k] = new Vector4(forward.x, forward.y, forward.z, tangentSign);
-                uvs[k] = new Vector2(u, (float)j / Sides);
-            }
-        }
-
-        // End caps: a ring facing outward plus a centre vertex at index Sides.
-        WriteCap((Segments + 1) * ring, points[0], -(points[1] - points[0]).normalized, 0);
-        WriteCap((Segments + 2) * ring, points[Segments],
-            (points[Segments] - points[Segments - 1]).normalized, Segments * ring);
-
-        ropeMesh.vertices = vertices;
-        ropeMesh.normals = normals;
-        ropeMesh.tangents = tangents;
-        ropeMesh.uv = uvs;
-        ropeMesh.RecalculateBounds();
-    }
-
-    private static void WriteCap(int at, Vector3 centre, Vector3 facing, int ringStart)
-    {
-        Vector3 tangent = (vertices[ringStart] - centre).normalized;
-        for (int j = 0; j < Sides; j++)
-        {
-            vertices[at + j] = vertices[ringStart + j];
-            normals[at + j] = facing;
-            tangents[at + j] = new Vector4(tangent.x, tangent.y, tangent.z, 1f);
-            uvs[at + j] = uvs[ringStart + j];
-        }
-        vertices[at + Sides] = centre;
-        normals[at + Sides] = facing;
-        tangents[at + Sides] = new Vector4(tangent.x, tangent.y, tangent.z, 1f);
-        uvs[at + Sides] = new Vector2(uvs[ringStart].x, 0.5f);
-    }
-
     internal static void Hide()
     {
         Camera.onPreCull -= OnPreCull;
         HideAnchorBolt();
-        if (ropeObject != null) UnityEngine.Object.Destroy(ropeObject);
-        if (ropeMesh != null) UnityEngine.Object.Destroy(ropeMesh);
+        if (rope != null) rope.Destroy();
         // The bundled material is a shared asset; only destroy our own.
         if (material != null && ownsMaterial) UnityEngine.Object.Destroy(material);
-        ropeObject = null;
-        ropeMesh = null;
+        rope = null;
         material = null;
     }
 }

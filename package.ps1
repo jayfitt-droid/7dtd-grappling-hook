@@ -2,8 +2,13 @@
 # contains one top-level folder, GrapplingHook, so unzipping it into the game's
 # Mods folder puts every file where the game expects it.
 #   powershell -ExecutionPolicy Bypass -File package.ps1
+#   powershell -ExecutionPolicy Bypass -File package.ps1 -Label beta   (GrapplingHook-<version>-beta.zip)
 # The art (asset bundle and icons) is taken as it is in modlet\GrapplingHook;
 # run build-assets.ps1 first if the model or textures changed.
+# -Label marks a pre-release in the file name only: ModInfo.xml keeps a plain
+# version, because the game parses it as System.Version and logs "does not
+# define a valid Version" for something like 1.0.0-beta.
+param([ValidatePattern('^[A-Za-z0-9.]*$')][string]$Label = '')
 $ErrorActionPreference = 'Stop'
 $repoRoot = $PSScriptRoot
 $modSource = Join-Path $repoRoot 'modlet\GrapplingHook'
@@ -23,7 +28,7 @@ if (-not (Test-Path -LiteralPath $modBinary)) { throw "Build produced no DLL: $m
 # Everything a player needs must be present before packing.
 $required = @(
     'ModInfo.xml',
-    'Config\items.xml', 'Config\recipes.xml', 'Config\loot.xml', 'Config\Localization.csv',
+    'Config\items.xml', 'Config\recipes.xml', 'Config\loot.xml', 'Config\traders.xml', 'Config\Localization.csv',
     'Config\GrapplingHookConfig.json',
     'Resources\GrapplingHook.unity3d',
     'UIAtlases\ItemIconAtlas\ammoGrapplingHookScrap.png',
@@ -37,6 +42,9 @@ foreach ($file in $required) {
 [xml]$modInfo = Get-Content -LiteralPath (Join-Path $modSource 'ModInfo.xml')
 $version = $modInfo.xml.Version.value
 if (-not $version) { throw 'ModInfo.xml has no Version value.' }
+$parsed = $null
+if (-not [Version]::TryParse($version, [ref]$parsed)) { throw "ModInfo.xml Version '$version' is not a plain version the game can read (use -Label for beta)." }
+if ($Label) { $version = "$version-$Label" }
 
 # File list: the modlet, the DLL, the README and the license, all under GrapplingHook/.
 $entries = [ordered]@{}

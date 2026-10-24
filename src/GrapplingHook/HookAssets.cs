@@ -35,7 +35,7 @@ internal static class HookAssets
         }
         try { ropeMaterial = DataLoader.LoadAsset<Material>(BundleUri + RopeName, false); }
         catch (Exception ex) { Log.Warning("[GrapplingHook] Rope material failed to load: " + ex.Message); }
-        Log.Out("[GrapplingHook] Asset bundle: " + models + " of " + boltPrefabs.Length + " hook models loaded" +
+        HookMod.Verbose("[GrapplingHook] Asset bundle: " + models + " of " + boltPrefabs.Length + " hook models loaded" +
             ", rope material " + (ropeMaterial != null ? "loaded" : "missing") + ".");
     }
 
@@ -68,7 +68,7 @@ internal static class HookAssets
         }
         if (first == null)
         {
-            Log.Out("[GrapplingHook] Projectile has no bolt mesh to replace.");
+            HookMod.Verbose("[GrapplingHook] Projectile has no bolt mesh to replace.");
             return;
         }
 
@@ -95,7 +95,7 @@ internal static class HookAssets
         if (!loggedFit)
         {
             loggedFit = true;
-            Log.Out("[GrapplingHook] Stock bolt bounds in projectile space: center=" + local.center.ToString("F3") +
+            HookMod.Verbose("[GrapplingHook] Stock bolt bounds in projectile space: center=" + local.center.ToString("F3") +
                 " size=" + local.size.ToString("F3") + " projectile scale=" + scale.ToString("F3") +
                 "; hook tip placed at z=" + tipZ.ToString("F3") + " under " + parent.name + ".");
         }

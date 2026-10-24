@@ -24,7 +24,10 @@
   // Allowed: 0.1 to 50. Default: 4.0
   "reel_out_speed": 4.0,
 
-  // Damage a hook does to the block it hits. Hooks never damage enemies.
+  // Base damage a hook does to the block it hits. The game scales it like
+  // any weapon's, by the block's material and hardness and by the world's
+  // block damage setting, so the health a block loses can differ (10 can
+  // take 15 off some blocks). Hooks never damage enemies.
   // Allowed: 0 to 10000. Default: 10
   "block_damage": 10,
 
@@ -36,5 +39,11 @@
   // Stamina used per second while you are attached and off the ground.
   // When your stamina runs out you let go of the rope, however high you are.
   // 0 turns stamina use off. Allowed: 0 to 100. Default: 3
-  "stamina_use": 3
+  "stamina_use": 3,
+
+  // true: write a detailed log of every shot, attach, reel, landing and
+  // multiplayer rope message to the game log, for tracking down a problem.
+  // false: only start-up, settings, warnings and errors. This is each game's
+  // own choice; a server does not change it. Default: false
+  "debug": false
 }

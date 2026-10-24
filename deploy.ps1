@@ -7,11 +7,29 @@ $stageRoot = Join-Path $gameRoot 'ModConfig\Modlets'
 $modSource = Join-Path $repoRoot 'modlet\GrapplingHook'
 $modBinary = Join-Path $repoRoot 'build\GrapplingHook.dll'
 $loaderSource = Join-Path $stageRoot '0_TFP_Harmony'
+# The Steam copy of the game loads mods from here (Jason's everyday install);
+# kept on the same build so it can join the test server. Updated only if the
+# mod is already installed there.
+$appDataMods = Join-Path $env:APPDATA '7DaysToDie\Mods'
+$appDataTarget = Join-Path $appDataMods 'GrapplingHook'
+$updateAppData = Test-Path -LiteralPath $appDataTarget
 
 if (-not (Test-Path -LiteralPath (Join-Path $gameRoot '7DaysToDie.exe'))) { throw "Game install not found: $gameRoot" }
 if (-not (Test-Path -LiteralPath $modBinary)) { throw "Build the DLL first: $modBinary" }
 if (-not (Test-Path -LiteralPath $modSource)) { throw "Modlet source missing: $modSource" }
 if (-not (Test-Path -LiteralPath $loaderSource)) { throw "Harmony loader missing: $loaderSource" }
+# The game and the local test server (test-server.ps1) both run from this
+# install and lock the DLL; replacing the folder under them half-fails.
+# Any other copy of the game (the Steam one) may have the AppData mod loaded.
+$running = Get-CimInstance Win32_Process -Filter "Name='7DaysToDie.exe'" |
+    Where-Object { $_.ExecutablePath -and ($updateAppData -or $_.ExecutablePath.StartsWith($gameRoot, [StringComparison]::OrdinalIgnoreCase)) }
+if ($running) {
+    $kinds = ($running | ForEach-Object {
+        if ($_.CommandLine -match '-dedicated') { 'test server' }
+        elseif ($_.ExecutablePath.StartsWith($gameRoot, [StringComparison]::OrdinalIgnoreCase)) { 'game' }
+        else { 'Steam copy of the game' } }) -join ' and '
+    throw "Close the $kinds first (test-server.ps1 stop for the server)."
+}
 
 function Assert-DirectChild([string]$parent, [string]$child) {
     $expected = [IO.Path]::GetFullPath((Join-Path $parent 'GrapplingHook'))
@@ -30,7 +48,9 @@ if (-not (Test-Path -LiteralPath $loaderDestination)) {
 
 $modDestination = Assert-DirectChild $modsRoot (Join-Path $modsRoot 'GrapplingHook')
 $stageDestination = Assert-DirectChild $stageRoot (Join-Path $stageRoot 'GrapplingHook')
-foreach ($target in @($modDestination, $stageDestination)) {
+$targets = @($modDestination, $stageDestination)
+if ($updateAppData) { $targets += Assert-DirectChild $appDataMods $appDataTarget }
+foreach ($target in $targets) {
     if (Test-Path -LiteralPath $target) {
         if ((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "Refusing to replace a linked directory: $target"
@@ -43,3 +63,4 @@ foreach ($target in @($modDestination, $stageDestination)) {
 
 Write-Host "Installed GrapplingHook at $modDestination"
 Write-Host "Staged GrapplingHook at $stageDestination"
+if ($updateAppData) { Write-Host "Updated GrapplingHook at $appDataTarget (the Steam copy's mods)" }

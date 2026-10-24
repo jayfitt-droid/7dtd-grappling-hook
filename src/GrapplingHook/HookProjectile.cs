@@ -42,7 +42,7 @@ internal static class HookLoadedBoltVisualPatch
             Transform joint = model != null ? FindChild(model, "ProjectileJoint") : null;
             if (joint == null)
             {
-                Log.Out("[GrapplingHook] Loaded hook: weapon model has no ProjectileJoint; parent=" +
+                HookMod.Verbose("[GrapplingHook] Loaded hook: weapon model has no ProjectileJoint; parent=" +
                     (__result.parent != null ? __result.parent.name : "none"));
                 return;
             }
@@ -51,7 +51,7 @@ internal static class HookLoadedBoltVisualPatch
             __result.localRotation = Quaternion.identity;
             __result.localScale = Vector3.one;
             SetLayer(__result, joint.gameObject.layer);
-            Log.Out("[GrapplingHook] Loaded hook moved to the weapon's ProjectileJoint (layer " +
+            HookMod.Verbose("[GrapplingHook] Loaded hook moved to the weapon's ProjectileJoint (layer " +
                 joint.gameObject.layer + ").");
         }
         catch (Exception ex) { Log.Warning("[GrapplingHook] Loaded hook visual: " + ex.Message); }
@@ -77,7 +77,7 @@ internal static class HookLaunchDiagnosticsPatch
     private static void Postfix(ProjectileMoveScript __instance)
     {
         if (!HookMod.IsHook(__instance.itemValueProjectile)) return;
-        Log.Out("[GrapplingHook] Projectile fired from " + __instance.previousPosition +
+        HookMod.Verbose("[GrapplingHook] Projectile fired from " + __instance.previousPosition +
             " velocity=" + __instance.velocity + " gravity=" + __instance.gravity);
     }
 }
@@ -124,14 +124,14 @@ internal static class HookImpactPatch
         {
             // checkCollision calls FindHitEntity immediately after its impact
             // raycast, before damage handling can replace the shared hit info.
-            Log.Out("[GrapplingHook] " + HookMod.TierNames[HookCollisionScope.Tier] + " hook impact tag=" + hitInfo.tag +
+            HookMod.Verbose("[GrapplingHook] " + HookMod.TierNames[HookCollisionScope.Tier] + " hook impact tag=" + hitInfo.tag +
                 " point=" + hitInfo.hit.pos + " player=" + Grapple.PlayerAnchorPoint(HookCollisionScope.Player));
             if (!GameUtils.IsBlockOrTerrain(hitInfo.tag)) return;
             Vector3i anchorBlock = Grapple.ResolveAnchorBlock(hitInfo.hit.pos, hitInfo.hit.blockPos,
                 hitInfo.ray.direction);
             int tier = HookCollisionScope.Tier;
             if (Grapple.Attach(HookCollisionScope.Player, hitInfo.hit.pos, anchorBlock,
-                    HookMod.Settings.MaxDistance[tier], hitInfo.ray.direction, HookCollisionScope.Launcher))
+                    HookMod.Settings.MaxDistance[tier], hitInfo.ray.direction, HookCollisionScope.Launcher, tier))
                 HookLine.ShowAnchorBolt(HookCollisionScope.Projectile, hitInfo.hit.pos, hitInfo.ray.direction);
         }
         catch (Exception ex) { Log.Warning("[GrapplingHook] Impact handler: " + ex); }
@@ -227,7 +227,7 @@ internal static class HookLoadedBoltRestorePatch
             var bolt = instantiate.Invoke(action, new object[] { data, Vector3.zero }) as Transform;
             if (bolt != null) data.projectileTs.Add(bolt);
         }
-        Log.Out("[GrapplingHook] Restored the loaded hook the game skipped at load (" +
+        HookMod.Verbose("[GrapplingHook] Restored the loaded hook the game skipped at load (" +
             data.projectileTs.Count + " of " + count + ").");
     }
 }

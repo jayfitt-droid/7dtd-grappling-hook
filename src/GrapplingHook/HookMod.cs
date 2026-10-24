@@ -9,7 +9,12 @@ public sealed class ModApi : IModApi
     {
         try
         {
-            HookMod.Directory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? ".";
+            // The game gives each mod its folder. The DLL's own Location can be
+            // empty (seen on the dedicated test server, 2026-10-24), and
+            // Path.GetDirectoryName("") throws, which stopped the whole init.
+            string location = Assembly.GetExecutingAssembly().Location;
+            HookMod.Directory = !string.IsNullOrEmpty(mod?.Path) ? mod.Path
+                : !string.IsNullOrEmpty(location) ? Path.GetDirectoryName(location) : ".";
             HookMod.Settings = HookSettings.Load(HookMod.Directory);
             new Harmony("jason.grapplinghook.rewrite").PatchAll(Assembly.GetExecutingAssembly());
             HookConsole.Register(SdtdConsole.Instance);
@@ -68,8 +73,47 @@ internal static class HookMod
 
     internal static bool IsHookName(string itemName) { return Array.IndexOf(ItemNames, itemName) >= 0; }
 
+    /// <summary>
+    /// Detail logging (every shot, attach, reel, landing, rope message): only
+    /// with "debug": true in this game's config. Start-up, config, warnings,
+    /// errors and console-command output are always logged.
+    /// </summary>
+    internal static void Verbose(string message)
+    {
+        HookSettings s = Settings;
+        if (s != null && s.Debug) Log.Out(message);
+    }
+
+    /// <summary>
+    /// `gh reload`. On a client connected to a server the server's settings
+    /// apply, so the local file is left alone. On a server (dedicated or the
+    /// host) the file is read again and sent to every player.
+    /// </summary>
     internal static void Reload()
     {
+        if (SettingsSync.IsRemoteClient && Settings.FromServer)
+        {
+            Log.Out("[GrapplingHook] Settings come from the server; edit the server's config and run gh reload on the server.");
+            return;
+        }
         Settings = HookSettings.Load(Directory);
+        SettingsSync.SendToAll();
+    }
+
+    /// <summary>A client received the server's settings.</summary>
+    internal static void ApplyServerSettings(HookSettings fromServer)
+    {
+        // Logging is this game's own choice, not the server's.
+        fromServer.Debug = Settings != null && Settings.Debug;
+        Settings = fromServer;
+        Log.Out("[GrapplingHook] Using the server's settings: " + Settings.Describe());
+    }
+
+    /// <summary>Leaving a server: this game's own config file applies again.</summary>
+    internal static void RestoreLocalSettings()
+    {
+        if (!Settings.FromServer) return;
+        Settings = HookSettings.Load(Directory);
+        Log.Out("[GrapplingHook] Back to this game's own settings.");
     }
 }

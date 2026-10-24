@@ -8,7 +8,13 @@ public sealed class ConsoleCmdGrapplingHook : ConsoleCmdAbstract
 {
     public override string[] getCommands() { return new[] { "gh" }; }
     public override string getDescription() { return "Grappling Hook test commands"; }
-    public override string getHelp() { return "gh give hook [count] | give crossbow | give schematics | attach | detach | breakanchor | state | config | reload"; }
+    public override string getHelp() { return "gh give hook [count] | give crossbow | give schematics | attach | detach | breakanchor | state | ropes | config | reload"; }
+
+    // On a server a client's command goes to the server, which checks the
+    // admin permission and, for a client-side command, sends it back to run
+    // on that client. Everything gh does needs the player's own game, so it
+    // runs there; on a dedicated server's own console it finds no player.
+    public override bool IsExecuteOnClient { get { return true; } }
 
     public override void Execute(List<string> args, CommandSenderInfo sender)
     {
@@ -23,6 +29,12 @@ public sealed class ConsoleCmdGrapplingHook : ConsoleCmdAbstract
                 case "detach": Grapple.Detach(); break;
                 case "breakanchor": BreakAnchor(); break;
                 case "state": State(); break;
+                case "ropes":
+                    string ropes = RopeSync.Describe();
+                    Log.Out(ropes);
+                    // Over telnet (the server) the log line is not the reply.
+                    SdtdConsole.Instance.Output(ropes);
+                    break;
                 case "config": Config(); break;
                 case "reload": HookMod.Reload(); Config(); break;
                 default: Log.Out("[GrapplingHook] " + getHelp()); break;
@@ -111,14 +123,36 @@ public sealed class ConsoleCmdGrapplingHook : ConsoleCmdAbstract
             Vector3.Distance(Grapple.PlayerAnchorPoint(state.Player), state.Anchor).ToString("F1"));
     }
 
-    private static void Config()
+    internal static void Config()
     {
-        HookSettings c = HookMod.Settings;
-        Log.Out("[GrapplingHook] scrap_max_distance=" + c.MaxDistance[0] + " iron_max_distance=" + c.MaxDistance[1] +
-            " steel_max_distance=" + c.MaxDistance[2] + " reel_in_speed=" + c.ReelInSpeed +
-            " reel_out_speed=" + c.ReelOutSpeed +
-            " block_damage=" + c.BlockDamage + " fall_damage_on_release=" + c.FallDamageOnRelease +
-            " stamina_use=" + c.StaminaUse);
+        string text = "[GrapplingHook] " + HookMod.Settings.Describe();
+        Log.Out(text);
+        SdtdConsole.Instance.Output(text);
+    }
+}
+
+/// <summary>
+/// Server-side settings commands. `gh` runs on the player's own game, so an
+/// admin playing on a dedicated server needs this one to reach the server:
+/// `ghserver reload` reads the server's config file again and sends it to
+/// every player; `ghserver config` shows the server's values.
+/// </summary>
+public sealed class ConsoleCmdGrapplingHookServer : ConsoleCmdAbstract
+{
+    public override string[] getCommands() { return new[] { "ghserver" }; }
+    public override string getDescription() { return "Grappling Hook server settings"; }
+    public override string getHelp() { return "ghserver reload | config"; }
+
+    public override void Execute(List<string> args, CommandSenderInfo sender)
+    {
+        string command = args.Count == 0 ? "config" : args[0].ToLowerInvariant();
+        try
+        {
+            if (command == "reload") HookMod.Reload();
+            else if (command != "config") { SdtdConsole.Instance.Output("[GrapplingHook] " + getHelp()); return; }
+            ConsoleCmdGrapplingHook.Config();
+        }
+        catch (Exception ex) { Log.Warning("[GrapplingHook] Command failed: " + ex); }
     }
 }
 
@@ -135,13 +169,20 @@ internal static class HookConsole
                 as Dictionary<string, IConsoleCommand>;
             var list = typeof(SdtdConsole).GetField("m_Commands", Flags)?.GetValue(console)
                 as List<IConsoleCommand>;
-            if (variants == null || list == null || variants.ContainsKey("gh")) return;
-            var command = new ConsoleCmdGrapplingHook();
-            variants["gh"] = command;
-            list.Add(command);
-            Log.Out("[GrapplingHook] gh command registered.");
+            if (variants == null || list == null) return;
+            Add(variants, list, "gh", new ConsoleCmdGrapplingHook());
+            Add(variants, list, "ghserver", new ConsoleCmdGrapplingHookServer());
         }
         catch (Exception ex) { Log.Warning("[GrapplingHook] Console registration: " + ex); }
+    }
+
+    private static void Add(Dictionary<string, IConsoleCommand> variants, List<IConsoleCommand> list,
+        string name, IConsoleCommand command)
+    {
+        if (variants.ContainsKey(name)) return; // the game already found it
+        variants[name] = command;
+        list.Add(command);
+        HookMod.Verbose("[GrapplingHook] " + name + " command registered.");
     }
 }
 

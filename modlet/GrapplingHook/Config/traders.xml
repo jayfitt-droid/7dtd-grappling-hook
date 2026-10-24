@@ -1,0 +1,12 @@
+<configs>
+    <!-- Traders can stock the schematics (Jason, 2026-10-24). Iron joins the
+         common schematic stock every trader draws from; steel joins the rare
+         books, which turn up less often, matching its later loot tier. Both
+         are priced from schematicMaster's EconomicValue. -->
+    <append xpath="/traders/trader_item_groups/trader_item_group[@name='schematicsModsCommon']">
+        <item name="ammoGrapplingHookIronSchematic"/>
+    </append>
+    <append xpath="/traders/trader_item_groups/trader_item_group[@name='rareBooks']">
+        <item name="ammoGrapplingHookSteelSchematic"/>
+    </append>
+</configs>

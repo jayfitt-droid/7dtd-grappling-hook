@@ -9,6 +9,8 @@ internal sealed class GrappleState
     internal Vector3 AnchorDirection;
     internal Vector3i AnchorBlock;
     internal int AnchorType;
+    // Hook tier (0 scrap, 1 iron, 2 steel), for the model other players see.
+    internal int Tier = 1;
     internal float Length;
     // World-space velocity in m/s. While the rope drives the player, this is
     // the authoritative motion; the controller only executes it with collision.
@@ -65,7 +67,7 @@ internal static class Grapple
     }
     internal static GrappleState State { get { return state; } }
 
-    internal static Vector3 AttachOffset(EntityPlayerLocal player)
+    internal static Vector3 AttachOffset(EntityAlive player)
     {
         // A stable point relative to the controller; the animated chest
         // transform lags behind the controller and makes the rope jitter.
@@ -97,11 +99,11 @@ internal static class Grapple
             Vector3i candidate = World.worldToBlockPos(hitPos + dir * step);
             if (!world.GetBlock(candidate).isair)
             {
-                Log.Out("[GrapplingHook] Anchor moved from air voxel " + reported + " to solid voxel " + candidate);
+                HookMod.Verbose("[GrapplingHook] Anchor moved from air voxel " + reported + " to solid voxel " + candidate);
                 return candidate;
             }
         }
-        Log.Out("[GrapplingHook] Impact reported only air near " + hitPos + "; no anchor.");
+        HookMod.Verbose("[GrapplingHook] Impact reported only air near " + hitPos + "; no anchor.");
         return reported;
     }
 
@@ -146,8 +148,15 @@ internal static class Grapple
     }
 
     internal static bool Attach(EntityPlayerLocal player, Vector3 anchor, Vector3i blockPos,
-        float maxDistance, Vector3 direction = default(Vector3), ItemValue crossbow = null)
+        float maxDistance, Vector3 direction = default(Vector3), ItemValue crossbow = null, int tier = 1)
     {
+        // A rope left over from an earlier player object (a world left
+        // without cleanup) must not block this one.
+        if (state != null && player != null && state.Player != player)
+        {
+            HookMod.Verbose("[GrapplingHook] Cleared a rope left over from a previous session.");
+            Detach(false);
+        }
         if (state != null || player == null || player.IsDead() || player.AttachedToEntity != null ||
             GameManager.Instance == null || GameManager.Instance.World == null) return false;
         float distance = Vector3.Distance(PlayerAnchorPoint(player), anchor);
@@ -155,7 +164,7 @@ internal static class Grapple
         if (distance < 0.1f) return false;
         if (distance > maxDistance)
         {
-            Log.Out("[GrapplingHook] Out of range: " + distance.ToString("F1") + " m, limit " +
+            HookMod.Verbose("[GrapplingHook] Out of range: " + distance.ToString("F1") + " m, limit " +
                 maxDistance.ToString("F1") + " m.");
             return false;
         }
@@ -176,7 +185,8 @@ internal static class Grapple
             // not how much rope can be reeled out afterwards.
             Length = Mathf.Max(distance, MinLength),
             Velocity = controller != null ? controller.Velocity : Vector3.zero,
-            LastReelTime = Time.realtimeSinceStartup
+            LastReelTime = Time.realtimeSinceStartup,
+            Tier = Mathf.Clamp(tier, 0, HookMod.TierNames.Length - 1)
         };
         if (crossbow != null && !crossbow.IsEmpty())
         {
@@ -190,9 +200,10 @@ internal static class Grapple
         disconnectHeld = HookInput.DisconnectHeld(player);
         HookInput.Enable();
         HookLine.Show();
-        Log.Out("[GrapplingHook] Attached to block " + blockPos + " at " + anchor +
+        HookMod.Verbose("[GrapplingHook] Attached to block " + blockPos + " at " + anchor +
             (state.HasCrossbow ? "; reeling tied to crossbow type " + state.CrossbowType + " seed " + state.CrossbowSeed +
                 " quality " + state.CrossbowQuality : "; no crossbow recorded, reeling with any item"));
+        RopeSync.LocalAttached(state);
         return true;
     }
 
@@ -202,6 +213,7 @@ internal static class Grapple
         if (old == null) return;
         state = null;
         PublishAttached(false);
+        RopeSync.LocalDetached(old);
         EntityPlayerLocal player = old.Player;
         vp_FPController controller = player != null ? player.vp_FPController : null;
         bool alive = player != null && !player.IsDead() && player.AttachedToEntity == null;
@@ -212,11 +224,14 @@ internal static class Grapple
             suppressReleaseLanding = !controller.Grounded;
             releaseTime = Time.time;
             groundedSince = -1f;
+            HookMod.Verbose(suppressReleaseLanding
+                ? "[GrapplingHook] No fall damage until the landing after this release."
+                : "[GrapplingHook] Released while standing; no landing to protect.");
         }
         else suppressReleaseLanding = false;
         HookInput.Release(player, alive, HoldingCrossbow(old));
         HookLine.Hide();
-        Log.Out("[GrapplingHook] Detached.");
+        HookMod.Verbose("[GrapplingHook] Detached.");
     }
 
     private static void HandMomentumToController(vp_FPController controller, Vector3 velocity)
@@ -245,7 +260,7 @@ internal static class Grapple
         BlockValue block = GameManager.Instance.World.GetBlock(s.AnchorBlock);
         if (block.isair || block.type != s.AnchorType)
         {
-            Log.Out("[GrapplingHook] Anchor block removed.");
+            HookMod.Verbose("[GrapplingHook] Anchor block removed.");
             Detach();
             return;
         }
@@ -264,7 +279,7 @@ internal static class Grapple
         if (DrainStamina(s, player, cfg.StaminaUse))
         {
             // Out of stamina: the player lets go, wherever they are.
-            Log.Out("[GrapplingHook] Out of stamina.");
+            HookMod.Verbose("[GrapplingHook] Out of stamina.");
             Detach();
             return;
         }
@@ -277,7 +292,7 @@ internal static class Grapple
         if (s.CrossbowMissingSince < 0f) s.CrossbowMissingSince = Time.time;
         else if (Time.time - s.CrossbowMissingSince > 1f)
         {
-            Log.Out("[GrapplingHook] The crossbow that fired the hook left the inventory.");
+            HookMod.Verbose("[GrapplingHook] The crossbow that fired the hook left the inventory.");
             Detach();
         }
     }
@@ -320,11 +335,20 @@ internal static class Grapple
     internal static void UpdateReleaseProtection(EntityPlayerLocal player)
     {
         if (!suppressReleaseLanding || state != null || player == null) return;
-        if (Time.time - releaseTime > 20f) { suppressReleaseLanding = false; return; }
+        if (Time.time - releaseTime > 20f)
+        {
+            suppressReleaseLanding = false;
+            HookMod.Verbose("[GrapplingHook] Release fall protection ended (20 s without a landing).");
+            return;
+        }
         vp_FPController controller = player.vp_FPController;
         if (controller == null || !controller.Grounded) { groundedSince = -1f; return; }
         if (groundedSince < 0f) groundedSince = Time.time;
-        else if (Time.time - groundedSince > 0.5f) suppressReleaseLanding = false;
+        else if (Time.time - groundedSince > 0.5f)
+        {
+            suppressReleaseLanding = false;
+            HookMod.Verbose("[GrapplingHook] Release fall protection ended (landed).");
+        }
     }
 
     /// <summary>
@@ -412,7 +436,7 @@ internal static class Grapple
         if ((reelIn || reelOut) && Time.time - s.LastMotionLog >= 2f)
         {
             s.LastMotionLog = Time.time;
-            Log.Out("[GrapplingHook] Reel " + (reelIn ? "in" : "out") + " length=" + s.Length.ToString("F2") +
+            HookMod.Verbose("[GrapplingHook] Reel " + (reelIn ? "in" : "out") + " length=" + s.Length.ToString("F2") +
                 " distance=" + dist.ToString("F2") + " speed=" + v.magnitude.ToString("F2"));
         }
     }
@@ -449,7 +473,7 @@ internal static class Grapple
             if (!s.ReelBlockedLogged)
             {
                 s.ReelBlockedLogged = true;
-                Log.Out("[GrapplingHook] Rope pull blocked by geometry at distance " + dist.ToString("F2"));
+                HookMod.Verbose("[GrapplingHook] Rope pull blocked by geometry at distance " + dist.ToString("F2"));
             }
         }
         else s.ReelBlockedLogged = false;
@@ -459,12 +483,17 @@ internal static class Grapple
         controller.m_FallSpeed = 0f;
     }
 
-    internal static bool ConsumeReleaseFallProtection(EntityAlive entity)
+    /// <summary>
+    /// True while a release with fall_damage_on_release off still protects the
+    /// local player. Not used up by the first ground contact: a light touch on a
+    /// ledge would otherwise spend it before the real landing. It ends 0.5 s
+    /// after the player is standing, or 20 s after the release
+    /// (UpdateReleaseProtection).
+    /// </summary>
+    internal static bool ReleaseFallProtected(EntityAlive entity)
     {
-        if (!suppressReleaseLanding || state != null || entity == null ||
-            entity != GameManager.Instance?.World?.GetPrimaryPlayer()) return false;
-        suppressReleaseLanding = false;
-        return true;
+        return suppressReleaseLanding && state == null && entity != null &&
+            entity == GameManager.Instance?.World?.GetPrimaryPlayer();
     }
 }
 
@@ -496,6 +525,8 @@ internal static class HookPlayerTickPatch
             HookInput.UpdateRelease(__instance);
         }
         catch (Exception ex) { Log.Warning("[GrapplingHook] Rope update failed: " + ex); Grapple.Detach(false); }
+        try { if (Grapple.State != null && Grapple.State.Player == __instance) RopeSync.LocalTick(Grapple.State); }
+        catch (Exception ex) { Log.Warning("[GrapplingHook] Rope sync: update failed: " + ex.Message); }
         try { HookLoadedBoltRestorePatch.Update(__instance); }
         catch (Exception ex) { Log.Warning("[GrapplingHook] Loaded hook restore failed: " + ex); }
     }
@@ -510,10 +541,40 @@ internal static class HookDeathPatch
     }
 }
 
+/// <summary>
+/// Leaving the world. Leaving a server goes through SaveAndCleanupWorld, which
+/// never calls GameManager.Cleanup, so both are patched (2026-10-24: after
+/// quitting a server while hanging, the stale rope blocked every new attach).
+/// </summary>
+internal static class HookWorldExit
+{
+    internal static void Run(string how)
+    {
+        if (Grapple.IsAttached) HookMod.Verbose("[GrapplingHook] Leaving the world (" + how + ") while attached.");
+        Grapple.Detach(false);
+        RopeSync.Reset();
+        HookMod.RestoreLocalSettings();
+    }
+}
+
 [HarmonyPatch(typeof(GameManager), "Cleanup")]
 internal static class HookWorldExitPatch
 {
-    private static void Prefix() { Grapple.Detach(false); }
+    private static void Prefix()
+    {
+        try { HookWorldExit.Run("cleanup"); }
+        catch (Exception ex) { Log.Warning("[GrapplingHook] World exit cleanup failed: " + ex.Message); }
+    }
+}
+
+[HarmonyPatch(typeof(GameManager), "SaveAndCleanupWorld")]
+internal static class HookWorldSaveExitPatch
+{
+    private static void Prefix()
+    {
+        try { HookWorldExit.Run("save and cleanup"); }
+        catch (Exception ex) { Log.Warning("[GrapplingHook] World exit cleanup failed: " + ex.Message); }
+    }
 }
 
 /// <summary>
@@ -527,7 +588,7 @@ internal static class HookVehicleEntryPatch
     private static void Prefix(EntityPlayerLocal __instance)
     {
         if (Grapple.State == null || Grapple.State.Player != __instance) return;
-        Log.Out("[GrapplingHook] Entered a vehicle.");
+        HookMod.Verbose("[GrapplingHook] Entered a vehicle.");
         Grapple.Detach(false);
     }
 }
@@ -537,6 +598,26 @@ internal static class HookFallPatch
 {
     private static bool Prefix(EntityAlive __instance)
     {
-        return !Grapple.ConsumeReleaseFallProtection(__instance);
+        return !Grapple.ReleaseFallProtected(__instance);
+    }
+}
+
+/// <summary>
+/// The player's own fall damage. vp_FPController.UpdateCollisions measures the
+/// landing and sends the FallImpact event, which EntityPlayerLocal.Init wires to
+/// FallImpact(speed); that sets the fall-speed cvar and fires the event whose
+/// buffs apply the damage and broken legs. Blocking fallHitGround alone left
+/// all of this in place (live test on the server, 2026-10-24). A zero impact
+/// is what the Glider Suit hands the game for a landing it has silenced.
+/// </summary>
+[HarmonyPatch(typeof(EntityPlayerLocal), "FallImpact")]
+internal static class HookFallImpactPatch
+{
+    private static void Prefix(EntityPlayerLocal __instance, ref float __0)
+    {
+        if (__0 <= 0f || !Grapple.ReleaseFallProtected(__instance)) return;
+        HookMod.Verbose("[GrapplingHook] Landing after a release: impact " + __0.ToString("F3") +
+            " cancelled (fall_damage_on_release is false).");
+        __0 = 0f;
     }
 }

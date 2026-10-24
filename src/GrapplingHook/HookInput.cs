@@ -67,7 +67,7 @@ internal static class HookInput
             ItemActionZoom zoom = held.item.Actions[i] as ItemActionZoom;
             if (zoom == null || held.actionData[i] == null) continue;
             zoom.ExecuteAction(held.actionData[i], true);
-            Log.Out("[GrapplingHook] Ended aiming before attaching.");
+            HookMod.Verbose("[GrapplingHook] Ended aiming before attaching.");
             return;
         }
     }
@@ -84,9 +84,9 @@ internal static class HookInput
         if (wasReelItem && (ReelInHeld(player) || ReelOutHeld(player)))
         {
             waitPlayer = player;
-            Log.Out("[GrapplingHook] Waiting for attack/aim buttons to be released.");
+            HookMod.Verbose("[GrapplingHook] Waiting for attack/aim buttons to be released.");
         }
-        else Log.Out("[GrapplingHook] Input restored.");
+        else HookMod.Verbose("[GrapplingHook] Input restored.");
     }
 
     /// <summary>Runs every frame; ends the post-detach block once the buttons are up.</summary>
@@ -96,7 +96,7 @@ internal static class HookInput
         if (!player.IsDead() && player.AttachedToEntity == null &&
             (ReelInHeld(player) || ReelOutHeld(player))) return;
         waitPlayer = null;
-        Log.Out("[GrapplingHook] Input restored.");
+        HookMod.Verbose("[GrapplingHook] Input restored.");
     }
 }
 

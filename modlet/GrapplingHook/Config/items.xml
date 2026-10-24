@@ -57,6 +57,9 @@
             <property name="CreativeMode" value="Player"/>
             <property name="CustomIcon" value="ammoGrapplingHookSteel"/>
             <property name="Unlocks" value="ammoGrapplingHookSteel"/>
+            <!-- Traders charge 3x EconomicValue: 1000 makes 3000 coins (Jason,
+                 2026-10-24). The iron schematic keeps schematicMaster's 800 (2400). -->
+            <property name="EconomicValue" value="1000"/>
             <effect_group tiered="false">
                 <triggered_effect trigger="onSelfPrimaryActionEnd" action="ModifyCVar" cvar="ammoGrapplingHookSteel" operation="set" value="1"/>
                 <triggered_effect trigger="onSelfPrimaryActionEnd" action="GiveExp" exp="50"/>
